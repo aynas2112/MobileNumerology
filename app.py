@@ -1,67 +1,96 @@
 import os
 import streamlit as st
-import streamlit.components.v1 as components
+import datetime
 from dotenv import load_dotenv
 import google.generativeai as genAI
-import datetime
 
+# Load environment variables
 load_dotenv()
 genAI.configure(api_key=os.getenv("GEMINI_API"))
 
-# Function to extract valid digit pairs (excluding 0-containing pairs)
-def extract_valid_pairs(mobileNum):
-    pairs = [mobileNum[i:i+2] for i in range(len(mobileNum) - 1)]
-    valid_pairs = [pair for pair in pairs if '0' not in pair]  # Exclude pairs with '0'
-    return valid_pairs
-
+# Function to reduce a number to a single digit
 def sum_digits_until_single(num):
-    """Calculates the sum of digits until a single digit is obtained."""
     while num >= 10:
         num = sum(int(digit) for digit in str(num))
     return num
 
+# Function to calculate Driver & Conductor numbers
+def calculate_driver_and_conductor(dob):
+    day, month, year = map(int, dob.split('/'))
+    driver_number = sum_digits_until_single(day)
+    conductor_number = sum_digits_until_single(day + month + sum(int(digit) for digit in str(year)))
+    return driver_number, conductor_number
+
+# Function to create the Vedic Grid
+def create_grid(dob):
+    day, month, year = map(int, dob.split('/'))
+    driver, conductor = calculate_driver_and_conductor(dob)
+    
+    # Extract last two digits of the year
+    year_last_two = year % 100
+    
+    # Extract digits from day, month, and year_last_two
+    elements = list(map(int, str(day) + str(month) + str(year_last_two)))
+    
+    # Include driver & conductor numbers if driver is not equal to date
+    if driver != day:
+        elements.append(driver)
+    elements.append(conductor)
+    
+    # Count occurrences of each digit
+    digit_count = {str(i): '' for i in range(1, 10)}
+    for digit in elements:
+        digit_str = str(digit)
+        if digit_str in digit_count:
+            digit_count[digit_str] += digit_str
+    
+    # Define numerology grid positions
+    grid_positions = {
+        '1': (0, 1), '2': (2, 0), '3': (0, 0),
+        '4': (2, 2), '5': (1, 2), '6': (1, 0),
+        '7': (1, 1), '8': (2, 1), '9': (0, 2)
+    }
+    
+    # Initialize a 3x3 grid with underscores
+    grid = [['_' for _ in range(3)] for _ in range(3)]
+    
+    # Fill the grid with numerology numbers
+    for digit, position in grid_positions.items():
+        x, y = position
+        if digit_count[digit]:
+            grid[x][y] = digit_count[digit]
+    
+    return grid, driver, conductor
+
+# Function to format and return the Vedic Grid as a string
+def print_grid(grid):
+    return "\n".join([" | ".join(row) for row in grid])
+
+# Function to generate numerology report for a mobile number
 def generate_numerology_report(mobileNum):
     try:
-        # Calculate the sum of digits
+        # Calculate sum of digits
         total_sum = sum(int(digit) for digit in mobileNum)
         reduced_sum = sum_digits_until_single(total_sum)
 
-        valid_pairs = extract_valid_pairs(mobileNum)
-        if not valid_pairs:
-            return "No valid digit pairs available for numerology analysis."
-
-        # Create analysis lines separately
-        analysis_lines = [
-            f"{i+1} - **Yog : {pair}** → *(Planet1 - Planet2)*\n   - **Meaning:** (Interpretation...)"
-            for i, pair in enumerate(valid_pairs)
-        ]
-        analysis_text = "\n\n".join(analysis_lines)  # Join with double newlines for readability
-
         prompt = f"""
-Analyze the given mobile number using numerology principles and provide a detailed report. Follow Vedic numerology by breaking the number into **valid digit pairs** (excluding any pair containing '0'), assigning planetary influences, and interpreting their effects. Ensure the report is concise, structured, and relevant.
+Analyze the given mobile number using numerology principles and provide a detailed report. Follow Vedic numerology by breaking the number into **valid digit pairs** (excluding any pair containing '0'), assigning planetary influences, and interpreting their effects.
 
-### Format:  
+### **Format:**
 
 **MOBILE NUMBER - ({mobileNum})**  
-
 #### **Sum of Digits Analysis:**  
 Total Sum: **{total_sum}** → Reduced to Single Digit: **{reduced_sum}**
 
-#### **Digit Pair Analysis:**  
-{analysis_text}  
-
-### **Final Analysis:**  
-- **Strengths:** (List the key strengths associated with this mobile number.)  
-- **Challenges:** (Mention possible difficulties and remedies, if applicable.)  
-- **Overall Impact:** (Summarize how this number influences the person's life.)  
+#### **Final Analysis:**  
+- **Strengths:** (Key strengths of this mobile number.)  
+- **Challenges:** (Possible difficulties and remedies.)  
+- **Overall Impact:** (How this number influences the person’s life.)  
 
 ### **Important Notes:**  
-1. Follow **authentic Vedic numerology principles**.  
-2. **Exclude pairs that contain '0' (e.g., 30, 60, 09, etc.).**  
-3. Ensure **concise yet meaningful** explanations.  
-4. Do **not** repeat the same interpretations unnecessarily.  
-5. Maintain **balance**—mention both **positive** and **challenging** aspects.  
-6. Avoid generic astrology-style predictions; keep it **mobile number-focused**.  
+1. **Follow Vedic numerology principles.**  
+2. **Exclude pairs with '0' (e.g., 30, 60, 09, etc.).**  
+3. **Avoid repetitive interpretations.**  
 """
         model = genAI.GenerativeModel("gemini-2.0-flash-exp")
         res = model.generate_content([prompt])
@@ -69,19 +98,36 @@ Total Sum: **{total_sum}** → Reduced to Single Digit: **{reduced_sum}**
     except Exception as e:
         return f"Error: {e}"
 
+# Streamlit UI
+st.title("🔮 Numerology Report Generator")
 
-st.title("Numerology Report Generator")
 name = st.text_input("Enter your Name")
 dob = st.date_input("Enter Date of Birth:", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today())
 mobileNum = st.text_input("Enter your Mobile Number", max_chars=10)
 
 if st.button("Generate Report"):
     if len(mobileNum) != 10 or not mobileNum.isdigit():
-        st.error("Please enter a valid 10-digit mobile number.")
+        st.error("❌ Please enter a valid 10-digit mobile number.")
     else:
         st.subheader(f"🔮 Numerology Report for {name}")
-        st.write(f"**Date of Birth:** {dob.strftime('%d-%m-%Y')}")
-        st.write(f"**Mobile Number:** {mobileNum}")
+        st.write(f"📅 **Date of Birth:** {dob.strftime('%d-%m-%Y')}")
+        st.write(f"📱 **Mobile Number:** {mobileNum}")
+
+        # Generate the Vedic Grid
+        dob_str = dob.strftime('%d/%m/%Y')
+        grid, driver, conductor = create_grid(dob_str)
+        grid_display = print_grid(grid)
+
+        # Display the Vedic Grid
+        st.markdown("### 🛕 **Vedic Grid**")
+        st.text(grid_display)
+
+        # Display Driver & Conductor Numbers
+        st.markdown("### 🔢 **Driver & Conductor Numbers**")
+        st.write(f"**Driver Number:** {driver}")
+        st.write(f"**Conductor Number:** {conductor}")
+
+        # Generate & Display Numerology Report
         report = generate_numerology_report(mobileNum)
-        st.markdown("### **Mobile Number Analysis**")  
+        st.markdown("### 📊 **Mobile Number Analysis**")
         st.markdown(report)
