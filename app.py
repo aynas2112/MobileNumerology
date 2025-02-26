@@ -62,9 +62,16 @@ def create_grid(dob):
     
     return grid, driver, conductor
 
-# Function to format and return the Vedic Grid as a string
-def print_grid(grid):
-    return "\n".join([" | ".join(row) for row in grid])
+# Function to format and return the Vedic Grid with styling
+def format_grid(grid):
+    styled_grid = "<table style='border-collapse: collapse; width: 100%; text-align: center;'>"
+    for row in grid:
+        styled_grid += "<tr>"
+        for cell in row:
+            styled_grid += f"<td style='border: 1px solid black; padding: 10px; font-size: 18px;'>{cell}</td>"
+        styled_grid += "</tr>"
+    styled_grid += "</table>"
+    return styled_grid
 
 # Function to generate numerology report for a mobile number
 def generate_numerology_report(mobileNum):
@@ -116,11 +123,11 @@ if st.button("Generate Report"):
         # Generate the Vedic Grid
         dob_str = dob.strftime('%d/%m/%Y')
         grid, driver, conductor = create_grid(dob_str)
-        grid_display = print_grid(grid)
+        grid_display = format_grid(grid)
 
         # Display the Vedic Grid
-        st.markdown("### 🛕 **Vedic Grid**")
-        st.text(grid_display)
+        st.markdown("### 🛕 **Vedic Grid**", unsafe_allow_html=True)
+        st.markdown(grid_display, unsafe_allow_html=True)
 
         # Display Driver & Conductor Numbers
         st.markdown("### 🔢 **Driver & Conductor Numbers**")
