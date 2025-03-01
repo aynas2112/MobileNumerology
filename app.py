@@ -138,3 +138,6 @@ if st.button("Generate Report"):
         report = generate_numerology_report(mobileNum)
         st.markdown("### 📊 **Mobile Number Analysis**")
         st.markdown(report)
+
+        st.markdown("### **Download**")
+        st.markdown("Click on 3 dots on the top right corner of the report and click on Print to save the report.")
