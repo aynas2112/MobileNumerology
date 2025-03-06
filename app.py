@@ -106,10 +106,10 @@ Total Sum: **{total_sum}** → Reduced to Single Digit: **{reduced_sum}**
         return f"Error: {e}"
 
 # Streamlit UI
-st.title("🔮 Numerology Report Generator")
+st.title("🔮 Mobile Numerology Report Generator")
 
 name = st.text_input("Enter your Name")
-dob = st.date_input("Enter Date of Birth:", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today())
+dob = st.date_input("Enter Date of Birth:", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today(), format="DD/MM/YYYY")
 mobileNum = st.text_input("Enter your Mobile Number", max_chars=10)
 
 if st.button("Generate Report"):
